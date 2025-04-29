@@ -4,41 +4,57 @@ import { SubmitButton } from "@/components/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
+import GoogleSignInButton from "@/app/shared/GoogleSignInButton";
 
 export default async function Login(props: { searchParams: Promise<Message> }) {
   const searchParams = await props.searchParams;
   return (
-    <form className="flex-1 flex flex-col min-w-64">
-      <h1 className="text-2xl font-medium">Sign in</h1>
-      <p className="text-sm text-foreground">
-        Don't have an account?{" "}
-        <Link className="text-foreground font-medium underline" href="/sign-up">
-          Sign up
-        </Link>
-      </p>
-      <div className="flex flex-col gap-2 [&>input]:mb-3 mt-8">
+    <div className="flex-1 flex flex-col w-full max-w-sm justify-center gap-2">
+      <Link
+        href="/"
+        className="absolute left-8 top-8 py-2 px-4 rounded-md no-underline text-foreground bg-btn-background hover:bg-btn-background-hover flex items-center group text-sm"
+      >
+        Back
+      </Link>
+      <form className="flex-1 flex flex-col w-full justify-center gap-2 text-foreground">
+        <h1 className="text-2xl font-medium mb-4 text-center">Sign in</h1>
         <Label htmlFor="email">Email</Label>
-        <Input name="email" placeholder="you@example.com" required />
-        <div className="flex justify-between items-center">
-          <Label htmlFor="password">Password</Label>
-          <Link
-            className="text-xs text-foreground underline"
-            href="/forgot-password"
-          >
-            Forgot Password?
-          </Link>
-        </div>
         <Input
-          type="password"
-          name="password"
-          placeholder="Your password"
+          className="rounded-md px-4 py-2 bg-inherit border mb-6"
+          name="email"
+          placeholder="you@example.com"
           required
         />
-        <SubmitButton pendingText="Signing In..." formAction={signInAction}>
-          Sign in
+        <Label htmlFor="password">Password</Label>
+        <Input
+          className="rounded-md px-4 py-2 bg-inherit border mb-6"
+          type="password"
+          name="password"
+          placeholder="••••••••"
+          required
+        />
+        <SubmitButton
+          formAction={signInAction}
+          className="bg-green-700 rounded-md px-4 py-2 text-foreground mb-2"
+          pendingText="Signing In..."
+        >
+          Sign In
         </SubmitButton>
+        <p className="text-center text-sm text-muted-foreground my-4">
+          OR
+        </p>
+        <GoogleSignInButton />
+        <p className="text-center text-sm mt-4">
+          Don't have an account?{" "}
+          <Link
+            href="/sign-up"
+            className="underline text-foreground hover:text-foreground/80"
+          >
+            Sign up
+          </Link>
+        </p>
         <FormMessage message={searchParams} />
-      </div>
-    </form>
+      </form>
+    </div>
   );
 }
