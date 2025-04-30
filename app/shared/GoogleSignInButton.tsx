@@ -27,8 +27,8 @@ export default function GoogleSignInButton() {
         console.error('Error signing in with Google:', error);
       } else {
         console.log('Successfully signed in with Google');
-        // Redirect or update UI as needed
-        window.location.href = '/protected';
+        // Let the server-side middleware handle the redirect
+        window.location.href = '/auth/callback?next=/protected';
       }
     };
 
