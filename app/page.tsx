@@ -1,8 +1,8 @@
-import Hero from "@/components/hero";
+import Hero from "@/components/ui/hero";
 import ConnectSupabaseSteps from "@/components/tutorial/connect-supabase-steps";
 import SignUpUserSteps from "@/components/tutorial/sign-up-user-steps";
 import { hasEnvVars } from "@/utils/supabase/check-env-vars";
-import GoogleSignInButton from "./shared/GoogleSignInButton";
+import GoogleSignInButton from "@/components/shared/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 

@@ -1,4 +1,4 @@
-import NextLogo from "./next-logo";
+import NextLogo from "@/components/ui/next-logo";
 import SupabaseLogo from "./supabase-logo";
 
 export default function Header() {
