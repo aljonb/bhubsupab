@@ -8,7 +8,7 @@ interface Permission {
 }
 
 interface RolePermission {
-  permissions: Permission;
+  permissions: Permission[];
 }
 
 interface Role {
@@ -30,6 +30,18 @@ interface UserRole {
 export async function hasPermission(supabase: SupabaseClient, userId: string, permissionName: string) {
   if (!userId) return false;
   
+  // More specific typing for the query result
+  type PermissionQueryResult = {
+    role_id: number;
+    roles: {
+      role_permissions: {
+        permissions: {
+          name: string;
+        }[];
+      }[];
+    };
+  }[];
+  
   const { data, error } = await supabase
     .from('user_roles')
     .select(`
@@ -42,32 +54,85 @@ export async function hasPermission(supabase: SupabaseClient, userId: string, pe
     `)
     .eq('user_id', userId);
     
-  if (error || !data) return false;
+  if (error || !data) {
+    console.error("Permission check error:", error);
+    return false;
+  }
   
-  // Check permission in the data structure
-  return data.some(role => {
-    if (!role.roles) return false;
-    return role.roles.some(r => 
-      r.role_permissions?.some(rp => 
-        rp.permissions && Array.isArray(rp.permissions) && 
-        rp.permissions.some(p => p.name === permissionName)
-      )
-    );
-  });
+  // Flatten the permission check logic
+  for (const userRole of data) {
+    if (!userRole.roles) continue;
+    
+    // Find any matching permission across all roles and permissions
+    const hasMatchingPermission = userRole.roles.some(role => {
+      if (!role.role_permissions) return false;
+      
+      return role.role_permissions.some(rolePermission => {
+        if (!rolePermission.permissions || !Array.isArray(rolePermission.permissions)) return false;
+        
+        return rolePermission.permissions.some(permission => 
+          permission && permission.name === permissionName
+        );
+      });
+    });
+    
+    if (hasMatchingPermission) return true;
+  }
+  
+  return false;
 }
 
 // Helper function to check if user has a specific role
-export async function hasRole(supabase: SupabaseClient, user: { data: { user: User | null }; error: AuthError | null }, roleName: string) {
-  if (!user || user.error || !user.data.user) return false;
+export async function hasRole(supabase: SupabaseClient, userResponse: { data: { user: User | null }; error: AuthError | null }, roleName: string) {
+  if (!userResponse || userResponse.error || !userResponse.data.user) return false;
   
   const { data } = await supabase
     .from('user_roles')
     .select('roles!inner(name)')
-    .eq('user_id', user.data.user.id)
+    .eq('user_id', userResponse.data.user.id)
     .eq('roles.name', roleName);
     
   return data && data.length > 0;
 }
+
+// Define route protection configuration
+interface RouteConfig {
+  pattern: string | RegExp;
+  type: 'exact' | 'startsWith';
+  protection: 'authenticated' | 'unauthenticated' | 'role';
+  roles?: string[];
+  redirectTo: string;
+}
+
+// Route protection configuration
+const routeProtection: RouteConfig[] = [
+  {
+    pattern: '/protected',
+    type: 'startsWith',
+    protection: 'authenticated',
+    redirectTo: '/sign-in'
+  },
+  {
+    pattern: '/',
+    type: 'exact',
+    protection: 'unauthenticated',
+    redirectTo: '/protected'
+  },
+  {
+    pattern: '/admin',
+    type: 'startsWith',
+    protection: 'role',
+    roles: ['admin'],
+    redirectTo: '/unauthorized'
+  },
+  {
+    pattern: '/bookings/manage',
+    type: 'startsWith',
+    protection: 'role',
+    roles: ['admin', 'staff'],
+    redirectTo: '/unauthorized'
+  }
+];
 
 // Unified session update function
 export const updateSession = async (request: NextRequest) => {
@@ -80,42 +145,46 @@ export const updateSession = async (request: NextRequest) => {
     });
 
     const supabase = await createClient();
-
-    // This will refresh session if expired - required for Server Components
     const userResponse = await supabase.auth.getUser();
     const user = userResponse.data.user;
 
-    // Basic auth routes protection
-    if (request.nextUrl.pathname.startsWith("/protected") && (!user || userResponse.error)) {
-      return NextResponse.redirect(new URL("/sign-in", request.url));
-    }
+    // Check each route configuration
+    for (const route of routeProtection) {
+      const isMatch = route.type === 'exact' 
+        ? request.nextUrl.pathname === route.pattern
+        : request.nextUrl.pathname.startsWith(route.pattern as string);
+      
+      if (!isMatch) continue;
 
-    if (request.nextUrl.pathname === "/" && user && !userResponse.error) {
-      return NextResponse.redirect(new URL("/protected", request.url));
-    }
-
-    // Protect admin routes
-    if (request.nextUrl.pathname.startsWith("/admin")) {
-      const isAdmin = await hasRole(supabase, userResponse, 'admin');
-      if (!isAdmin) {
-        return NextResponse.redirect(new URL("/unauthorized", request.url));
+      // Handle authentication checks
+      if (route.protection === 'authenticated' && (!user || userResponse.error)) {
+        return NextResponse.redirect(new URL(route.redirectTo, request.url));
       }
-    }
-    
-    // Protect booking management routes for staff/admin only
-    if (request.nextUrl.pathname.startsWith("/bookings/manage")) {
-      const isStaff = await hasRole(supabase, userResponse, 'staff');
-      const isAdmin = await hasRole(supabase, userResponse, 'admin'); 
+      
+      if (route.protection === 'unauthenticated' && user && !userResponse.error) {
+        return NextResponse.redirect(new URL(route.redirectTo, request.url));
+      }
+      
+      // Handle role-based protection
+      if (route.protection === 'role' && route.roles && route.roles.length > 0 && user) {
+        // Fetch all user roles once
+        const { data } = await supabase
+          .from('user_roles')
+          .select('roles!inner(name)')
+          .eq('user_id', user.id);
         
-      if (!isStaff && !isAdmin) {
-        return NextResponse.redirect(new URL("/unauthorized", request.url));
+        const userRoles = data?.map(item => item.roles[0]?.name).filter(Boolean) || [];
+        const hasRequiredRole = route.roles.some(role => userRoles.includes(role));
+        
+        if (!hasRequiredRole) {
+          return NextResponse.redirect(new URL(route.redirectTo, request.url));
+        }
       }
     }
 
     return response;
   } catch (e) {
     console.error("Session update error:", e);
-    // If error occurs, continue without blocking the request
     return NextResponse.next({
       request: {
         headers: request.headers,
