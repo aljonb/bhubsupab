@@ -2,14 +2,7 @@
 
 import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import styles from '../styles/Bookings.module.css';
-
-interface Booking {
-  id: string;
-  user_id: string;
-  date: string;
-  time: string;
-  service: string;
-}
+import { Booking } from '@/lib/types';
 
 type UseLocalStorageReturnType<T> = [T, (value: T | ((val: T) => T)) => void];
 

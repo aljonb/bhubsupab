@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/lib/utils/supabase/server';
 import { SupabaseClient, User, AuthError } from '@supabase/supabase-js';
 
 // Add these interfaces

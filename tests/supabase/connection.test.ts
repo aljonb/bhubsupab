@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@/lib/utils/supabase/client';
 
 // Mock the Supabase client
 vi.mock('@/utils/supabase/client', () => ({
