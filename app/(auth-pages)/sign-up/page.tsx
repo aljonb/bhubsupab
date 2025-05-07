@@ -39,6 +39,17 @@ export default async function Signup(props: {
             minLength={6}
             required
           />
+          <Label>User Type</Label>
+          <div className="flex gap-4">
+            <div className="flex items-center space-x-2">
+              <input type="radio" id="client" name="userRole" value="client" defaultChecked />
+              <Label htmlFor="client">Client</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input type="radio" id="barber" name="userRole" value="barber" />
+              <Label htmlFor="barber">Barber</Label>
+            </div>
+          </div>
           <SubmitButton formAction={signUpAction} pendingText="Signing up...">
             Sign up
           </SubmitButton>
